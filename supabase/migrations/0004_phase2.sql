@@ -7,7 +7,7 @@
 -- (XP, levels, badges, streaks, goals) is derived from existing tables.
 
 -- ============ memory_verses ============
-create table public.memory_verses (
+create table if not exists public.memory_verses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   ref text not null,
@@ -21,6 +21,7 @@ create table public.memory_verses (
 
 alter table public.memory_verses enable row level security;
 
+drop policy if exists "memory_verses_all_own" on public.memory_verses;
 create policy "memory_verses_all_own" on public.memory_verses
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
@@ -70,6 +71,17 @@ alter table public.profiles
   add column if not exists review_reminders boolean not null default false,
   add column if not exists streak_reminders boolean not null default false;
 
+-- ---------- user_roles ----------
+-- NOTE: table must be created BEFORE the is_admin() helper below,
+-- which references it.
+create table if not exists public.user_roles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('admin')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.user_roles enable row level security;
+
 -- ---------- admin role check helper (security definer) ----------
 -- Used by policies so user_roles lookups don't recurse through RLS.
 create or replace function public.is_admin(uid uuid)
@@ -84,15 +96,6 @@ as $$
     where user_id = uid and role = 'admin'
   );
 $$;
-
--- ---------- user_roles ----------
-create table if not exists public.user_roles (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  role text not null check (role in ('admin')),
-  created_at timestamptz not null default now()
-);
-
-alter table public.user_roles enable row level security;
 
 -- Only admins can list roles. There is intentionally NO insert policy:
 -- new admins are granted by the owner via the Supabase SQL editor
