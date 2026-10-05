@@ -1,10 +1,10 @@
-# Supabase setup walkthrough — Lumen Bible
+# Supabase setup walkthrough — Halo
 
 Takes ~10 minutes. Do these in order; check each one before moving on.
 
 ## 1. Create the project
 1. Go to **supabase.com** and sign up (or sign in).
-2. Click **New project** → name it `lumen-bible`, keep the free plan.
+2. Click **New project** → name it `halo`, keep the free plan.
 3. Pick a region close to you (US West). Set a database password and **save it somewhere**.
 4. Wait ~2 minutes while it spins up. ✅ Done when the dashboard home loads.
 

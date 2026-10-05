@@ -42,7 +42,7 @@ export function getChapterStudy(bookId: string, chapter: number): ChapterStudy |
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('lumen-bible', 1);
+    const req = indexedDB.open('halo', 1);
     req.onupgradeneeded = () => {
       req.result.createObjectStore('chapters');
     };

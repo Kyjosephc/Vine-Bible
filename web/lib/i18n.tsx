@@ -2,7 +2,7 @@
 // Intentionally hook-free and WITHOUT 'use client' so it is safe to import
 // from both server and client components (calling it inside a server
 // component works because there are no React hooks involved).
-// Language is persisted to localStorage ('lumen-lang'); changing it takes
+// Language is persisted to localStorage ('halo-lang'); changing it takes
 // effect on the next render/navigation — callers that switch language should
 // reload or navigate afterwards.
 
@@ -14,7 +14,7 @@ import { pt } from '@/i18n/pt';
 const LOCALES: Record<string, Record<string, string>> = { en, es, pt };
 export const SUPPORTED_LANGS = ['en', 'es', 'pt'] as const;
 
-const STORAGE_KEY = 'lumen-lang';
+const STORAGE_KEY = 'halo-lang';
 let memoryLang = 'en';
 
 function storedLang(): string | null {
@@ -140,7 +140,7 @@ const EXTRA: Record<string, Record<string, string>> = {
     highlights: 'Highlights',
 
     more_title: 'More',
-    more_hint: 'Everything else in Lumen Bible.',
+    more_hint: 'Everything else in Halo.',
   },
   es: {},
   pt: {},

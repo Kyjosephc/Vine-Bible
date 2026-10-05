@@ -1,7 +1,7 @@
 // English UI strings. Lesson and Bible content itself stays English in all languages.
 export const en: Record<string, string> = {
   // auth
-  "app.name": 'Lumen Bible',
+  "app.name": 'Halo',
   "auth.signInPrompt": 'Sign in to save your progress',
   "auth.emailPlaceholder": 'you@example.com',
   "auth.sendMagicLink": 'Send magic link',
@@ -17,7 +17,7 @@ export const en: Record<string, string> = {
   send_magic_link: 'Send magic link',
   continue_google: 'Continue with Google',
   check_email: 'Check your email for the sign-in link.',
-  sign_in_title: 'Welcome to Lumen',
+  sign_in_title: 'Welcome to Halo',
   welcome_back: 'Welcome back',
   // nav
   nav_home: 'Home',

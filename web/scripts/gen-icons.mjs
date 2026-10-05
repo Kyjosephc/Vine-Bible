@@ -1,5 +1,5 @@
 /**
- * Generates the Lumen Bible app icons and favicon.
+ * Generates the Halo app icons and favicon.
  *
  * Pure Node, zero dependencies. Writes:
  *   public/icons/icon-192.png          (any purpose, rounded, transparent corners)

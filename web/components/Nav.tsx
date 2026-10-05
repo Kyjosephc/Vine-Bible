@@ -95,7 +95,7 @@ export default function Nav() {
       <header className="sticky top-0 z-40 hidden border-b border-ink/10 bg-parchment/90 backdrop-blur md:block dark:border-white/10 dark:bg-ink/90">
         <nav className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="font-display text-xl font-semibold tracking-tight text-ink dark:text-parchment">
-            Lumen <span className="text-gold">Bible</span>
+            Halo
           </Link>
           <ul className="flex items-center gap-1">
             {TABS.map(({ href, key, Icon }) => {
@@ -137,7 +137,7 @@ export default function Nav() {
       <header className="sticky top-0 z-40 border-b border-ink/10 bg-parchment/90 backdrop-blur md:hidden dark:border-white/10 dark:bg-ink/90">
         <div className="flex items-center justify-between px-4 py-3">
           <Link href="/" className="font-display text-lg font-semibold tracking-tight text-ink dark:text-parchment">
-            Lumen <span className="text-gold">Bible</span>
+            Halo
           </Link>
           {user ? (
             <UserMenu />

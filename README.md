@@ -1,4 +1,4 @@
-# Lumen Bible
+# Halo
 
 A production-ready Bible learning, study, and discipleship platform. Next.js 14 + TypeScript + Tailwind on the frontend, Supabase (Postgres + Auth) on the backend. Built to take someone from "I don't know where to start" to deep, structured Scripture study.
 

@@ -11,7 +11,7 @@ const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader
 // next/font CSS-variable classes are referenced from tailwind.config.ts
 // (fontFamily.display -> var(--font-newsreader), fontFamily.sans -> var(--font-inter)).
 export const metadata: Metadata = {
-  title: 'Lumen Bible',
+  title: 'Halo',
   description:
     'Study Scripture deeply: guided lessons and quizzes, reading plans, journaling, and a full offline-capable Bible.',
   manifest: '/manifest.webmanifest',

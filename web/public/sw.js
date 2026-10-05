@@ -1,4 +1,4 @@
-/* Lumen Bible service worker — hand-rolled, no PWA plugin.
+/* Halo service worker — hand-rolled, no PWA plugin.
  *
  * Strategy:
  *  - Bible API hosts (bolls.life, bible-api.com): cache-first in the BIBLE
@@ -7,8 +7,8 @@
  *  - Same-origin static assets: cache-first, refreshed from network.
  */
 
-const SHELL = 'lumen-shell-v1';
-const BIBLE = 'lumen-bible-v1';
+const SHELL = 'halo-shell-v1';
+const BIBLE = 'halo-v1';
 const SHELL_ASSETS = ['/', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (event) => {

@@ -1,4 +1,4 @@
--- Lumen Bible: core schema (migration 0001)
+-- Halo: core schema (migration 0001)
 -- Valid Postgres (Supabase). All user data is per-user; groups share content with members.
 
 create extension if not exists "pgcrypto";

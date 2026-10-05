@@ -39,7 +39,7 @@ export default function MorePage() {
     <main className="mx-auto max-w-2xl px-4 py-8">
       <SectionTitle>{tr('More')}</SectionTitle>
       <p className="mt-2 text-sm text-slate-400">
-        {tr('Everything else in Lumen Bible.')}
+        {tr('Everything else in Halo.')}
       </p>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         {ITEMS.map((item) => (

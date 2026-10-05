@@ -15,7 +15,7 @@ export function useKids(): KidsContextValue {
   return useContext(KidsContext);
 }
 
-const STORAGE_KEY = 'lumen-kids';
+const STORAGE_KEY = 'halo-kids';
 
 function applyKidsMode(on: boolean): void {
   try {
@@ -28,7 +28,7 @@ function applyKidsMode(on: boolean): void {
 
 /**
  * Provides kid-friendly mode: larger base font, simpler presentation.
- * Persisted to localStorage ('lumen-kids') and, best-effort, to
+ * Persisted to localStorage ('halo-kids') and, best-effort, to
  * profiles.kids_mode for signed-in users.
  *
  * NOTE: wrap the root layout with <KidsProvider> for this to take effect.

@@ -104,7 +104,7 @@ export default function TutorPage() {
           <p className="mt-2 text-sm text-slate-300">
             {tr(
               'tutor.notConfiguredHint',
-              'This deployment has no language-model key configured. The person hosting Lumen Bible needs to set the LLM_API_KEY environment variable (see the README) before the tutor can answer questions.',
+              'This deployment has no language-model key configured. The person hosting Halo needs to set the LLM_API_KEY environment variable (see the README) before the tutor can answer questions.',
             )}
           </p>
         </Card>

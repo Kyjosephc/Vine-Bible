@@ -1,4 +1,4 @@
-// Shared domain types for Lumen Bible.
+// Shared domain types for Halo.
 // Minimal contract: QuizQuestion, QuizType, Verse.
 
 export type QuizType = 'mc' | 'tf' | 'matching' | 'fill';

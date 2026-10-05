@@ -1,5 +1,5 @@
 /**
- * Reading plan definitions for Lumen Bible.
+ * Reading plan definitions for Halo.
  *
  * Three plans:
  * - bible-in-a-year: all 1189 chapters in canonical order, ~3 chapters/day
