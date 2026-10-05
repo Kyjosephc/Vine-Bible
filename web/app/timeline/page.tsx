@@ -2,23 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { TIMELINE } from '@/content/timeline';
+import type { TimelineEra, TimelineEvent } from '@/content/timeline';
 import { useT } from '@/lib/i18n';
 import { Badge, Card, EmptyState } from '@/components/ui';
 
-interface TimelineEventLike {
-  id: string;
-  title: string;
-  date: string;
-  era: string;
-  description: string;
-  ref?: string;
-}
-
-function safeTimeline(): TimelineEventLike[] {
+function safeTimeline(): TimelineEra[] {
   try {
-    const raw = TIMELINE as unknown;
-    if (Array.isArray(raw)) return raw as TimelineEventLike[];
-    return [];
+    return Array.isArray(TIMELINE) ? (TIMELINE as TimelineEra[]) : [];
   } catch {
     return [];
   }
@@ -26,73 +16,115 @@ function safeTimeline(): TimelineEventLike[] {
 
 export default function TimelinePage() {
   const { t } = useT();
-  const events = useMemo(() => safeTimeline(), []);
-  const [era, setEra] = useState<string>('all');
-  const [selected, setSelected] = useState<TimelineEventLike | null>(null);
+  const eras = useMemo(() => safeTimeline(), []);
+  const [eraId, setEraId] = useState<string>('all');
+  const [openEra, setOpenEra] = useState<string | null>(eras[0]?.id ?? null);
+  const [selected, setSelected] = useState<(TimelineEvent & { era: string }) | null>(null);
 
-  const eras = useMemo(() => {
-    const set = new Set(events.map((e) => e.era).filter(Boolean));
-    return ['all', ...set];
-  }, [events]);
-
-  const filtered = era === 'all' ? events : events.filter((e) => e.era === era);
+  const visible = eraId === 'all' ? eras : eras.filter((e) => e.id === eraId);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="font-display text-3xl font-semibold text-ink dark:text-parchment">
-        {t('timeline_title')}
-      </h1>
+      <div>
+        <h1 className="font-display text-3xl font-semibold text-ink dark:text-parchment">
+          {t('timeline_title')}
+        </h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          {t('The story of Scripture, era by era — tap an era to explore its key moments.')}
+        </p>
+      </div>
 
       {eras.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {eras.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setEra(e)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                era === e
-                  ? 'bg-gold text-ink'
-                  : 'border border-ink/15 text-ink hover:border-gold/60 dark:border-white/15 dark:text-parchment'
-              }`}
-            >
-              {e === 'all' ? t('all_lengths') : e}
-            </button>
-          ))}
+          {['all', ...eras.map((e) => e.id)].map((id) => {
+            const label = id === 'all' ? t('all_lengths') : eras.find((e) => e.id === id)?.title ?? id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setEraId(id)}
+                className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  eraId === id
+                    ? 'bg-gold text-ink'
+                    : 'border border-ink/15 text-ink hover:border-gold/60 dark:border-white/15 dark:text-parchment'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {visible.length === 0 ? (
         <EmptyState title={t('timeline_title')} description={t('no_results')} />
       ) : (
-        <ol className="relative space-y-4 border-l-2 border-gold/30 pl-6">
-          {filtered.map((event) => (
-            <li key={event.id} className="relative">
-              <span
-                aria-hidden
-                className="absolute -left-[31px] top-4 h-3 w-3 rounded-full border-2 border-gold bg-parchment dark:bg-ink"
-              />
-              <button
-                type="button"
-                onClick={() => setSelected(event)}
-                className="w-full text-left"
-              >
-                <Card className="transition hover:border-gold/50">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{event.date}</Badge>
-                    {event.era ? <span className="text-xs text-slate-500 dark:text-slate-400">{event.era}</span> : null}
+        <div className="space-y-3">
+          {visible.map((era) => {
+            const open = openEra === era.id;
+            return (
+              <Card key={era.id} className="!p-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenEra(open ? null : era.id)}
+                  className="block w-full px-5 py-4 text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gold">
+                        {era.period}
+                      </p>
+                      <h2 className="font-display mt-0.5 text-xl font-semibold text-ink dark:text-parchment">
+                        {era.title}
+                      </h2>
+                      <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                        {era.description}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 text-gold transition-transform ${open ? 'rotate-90' : ''}`}
+                    >
+                      ▸
+                    </span>
                   </div>
-                  <h2 className="font-display mt-1 text-lg font-semibold text-ink dark:text-parchment">
-                    {event.title}
-                  </h2>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
-                    {event.description}
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    {era.events.length} {t('events')}
                   </p>
-                </Card>
-              </button>
-            </li>
-          ))}
-        </ol>
+                </button>
+                {open && (
+                  <ol className="space-y-3 border-t border-ink/10 px-5 py-4 dark:border-white/10">
+                    {era.events.map((event, i) => (
+                      <li key={`${era.id}-${i}`} className="relative pl-5">
+                        <span
+                          aria-hidden
+                          className="absolute left-0 top-2 h-2.5 w-2.5 rounded-full border-2 border-gold bg-parchment dark:bg-ink"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSelected({ ...event, era: era.title })}
+                          className="w-full text-left"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge>{event.date}</Badge>
+                            {event.ref ? (
+                              <span className="text-xs font-medium text-gold">{event.ref}</span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 font-semibold text-ink dark:text-parchment">
+                            {event.title}
+                          </p>
+                          <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                            {event.description}
+                          </p>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {selected && (
@@ -106,7 +138,7 @@ export default function TimelinePage() {
             <Card>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge>{selected.date}</Badge>
-                {selected.era ? <Badge>{selected.era}</Badge> : null}
+                <Badge>{selected.era}</Badge>
                 {selected.ref ? <Badge>{selected.ref}</Badge> : null}
               </div>
               <h2 className="font-display mt-2 text-2xl font-semibold text-ink dark:text-parchment">

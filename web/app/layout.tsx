@@ -5,6 +5,8 @@ import { LanguageProvider } from '@/lib/i18n';
 import { KidsProvider } from '@/components/KidsMode';
 import OnboardingGate from '@/components/OnboardingGate';
 import Nav from '@/components/Nav';
+import RouteTracker from '@/components/RouteTracker';
+import TextScale from '@/components/TextScale';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader', display: 'swap' });
@@ -32,9 +34,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} ${newsreader.variable} font-sans antialiased`}>
         <LanguageProvider>
           <KidsProvider>
-          <OnboardingGate />
-          <Nav />
-          <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-6 sm:px-6">{children}</main>
+            <a href="#main-content" className="skip-link">
+              Skip to content
+            </a>
+            <OnboardingGate />
+            <TextScale />
+            <RouteTracker />
+            <Nav />
+            <main id="main-content" className="mx-auto w-full max-w-5xl px-4 pb-24 pt-6 sm:px-6">
+              {children}
+            </main>
           </KidsProvider>
         </LanguageProvider>
         <script

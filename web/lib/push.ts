@@ -95,3 +95,62 @@ export async function unsubscribePush(): Promise<boolean> {
     return false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Reminder preferences (device-facing helpers over profiles columns).
+//
+// All reminder types default OFF. The deployer's scheduler reads
+// profiles.daily_reminder_enabled / daily_reminder_time / review_reminders /
+// streak_reminders together with push_subscriptions, then sends via the
+// admin-gated POST /api/push/send. See README "Notification setup".
+// ---------------------------------------------------------------------------
+
+export interface ReminderPrefs {
+  daily_reminder_enabled: boolean;
+  /** HH:MM 24-hour local time */
+  daily_reminder_time: string;
+  review_reminders: boolean;
+  streak_reminders: boolean;
+}
+
+export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
+  daily_reminder_enabled: false,
+  daily_reminder_time: '08:00',
+  review_reminders: false,
+  streak_reminders: false,
+};
+
+const PREFS_KEY = 'halo-reminder-prefs';
+
+function validTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+/** Local (device) copy of reminder prefs — works even when signed out. */
+export function loadLocalReminderPrefs(): ReminderPrefs {
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    if (!raw) return { ...DEFAULT_REMINDER_PREFS };
+    const parsed = JSON.parse(raw) as Partial<ReminderPrefs>;
+    return {
+      daily_reminder_enabled: parsed.daily_reminder_enabled === true,
+      daily_reminder_time:
+        typeof parsed.daily_reminder_time === 'string' && validTime(parsed.daily_reminder_time)
+          ? parsed.daily_reminder_time
+          : DEFAULT_REMINDER_PREFS.daily_reminder_time,
+      review_reminders: parsed.review_reminders === true,
+      streak_reminders: parsed.streak_reminders === true,
+    };
+  } catch {
+    return { ...DEFAULT_REMINDER_PREFS };
+  }
+}
+
+export function saveLocalReminderPrefs(prefs: ReminderPrefs): void {
+  try {
+    window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+

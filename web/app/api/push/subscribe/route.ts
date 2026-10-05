@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createServerClient, getUser } from '@/lib/supabase/server';
+import { checkRateLimit, getClientIp, rateLimitedResponse } from '@/lib/ratelimit';
 
 interface StoredSubscription {
   endpoint?: unknown;
@@ -15,6 +16,9 @@ async function requireUser() {
  * Saves (upserts) the device's push subscription for the signed-in user.
  */
 export async function POST(req: NextRequest) {
+  if (!checkRateLimit(`push-sub:${getClientIp(req)}`, 30, 60_000)) {
+    return rateLimitedResponse(60);
+  }
   const user = await requireUser();
   if (!user) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -52,6 +56,9 @@ export async function POST(req: NextRequest) {
  * Removes the device's push subscription.
  */
 export async function DELETE(req: NextRequest) {
+  if (!checkRateLimit(`push-sub:${getClientIp(req)}`, 30, 60_000)) {
+    return rateLimitedResponse(60);
+  }
   const user = await requireUser();
   if (!user) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });

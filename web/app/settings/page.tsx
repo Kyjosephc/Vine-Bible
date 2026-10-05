@@ -6,6 +6,13 @@ import { createClient } from '@/lib/supabase/client';
 import { useT } from '@/lib/i18n';
 import { useKids } from '@/components/KidsMode';
 import { subscribePush, unsubscribePush, getPushSubscription } from '@/lib/push';
+import {
+  DEFAULT_REMINDER_PREFS,
+  loadLocalReminderPrefs,
+  saveLocalReminderPrefs,
+  type ReminderPrefs,
+} from '@/lib/push';
+import { TEXT_SCALES, TEXT_SCALE_KEY, applyTextScale, loadTextScale, type TextScaleId } from '@/components/TextScale';
 import { Button, Card, SectionTitle, Spinner } from '@/components/ui';
 
 function useTr() {
@@ -34,6 +41,10 @@ export default function SettingsPage() {
   const [nameSaved, setNameSaved] = useState(false);
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [prefs, setPrefs] = useState<ReminderPrefs>({ ...DEFAULT_REMINDER_PREFS });
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsSaved, setPrefsSaved] = useState(false);
+  const [textScale, setTextScale] = useState<TextScaleId>('default');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const vapidConfigured =
@@ -42,6 +53,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     void (async () => {
+      setPrefs(loadLocalReminderPrefs());
+      try {
+        setTextScale(loadTextScale());
+      } catch {
+        // ignore
+      }
       try {
         const supabase = createClient();
         const {
@@ -53,11 +70,37 @@ export default function SettingsPage() {
         setEmail(user.email ?? '');
         const { data } = await supabase
           .from('profiles')
-          .select('display_name')
+          .select(
+            'display_name, daily_reminder_enabled, daily_reminder_time, review_reminders, streak_reminders',
+          )
           .eq('id', user.id)
           .maybeSingle();
-        const name = (data as { display_name?: unknown } | null)?.display_name;
+        const row = (data as {
+          display_name?: unknown;
+          daily_reminder_enabled?: unknown;
+          daily_reminder_time?: unknown;
+          review_reminders?: unknown;
+          streak_reminders?: unknown;
+        } | null) ?? null;
+        const name = row?.display_name;
         if (typeof name === 'string') setDisplayName(name);
+        // Server prefs win when signed in (they drive the reminder scheduler).
+        if (row) {
+          setPrefs((prev) => {
+            const merged: ReminderPrefs = {
+              daily_reminder_enabled: row.daily_reminder_enabled === true,
+              daily_reminder_time:
+                typeof row.daily_reminder_time === 'string' &&
+                /^([01]\d|2[0-3]):[0-5]\d$/.test(row.daily_reminder_time)
+                  ? row.daily_reminder_time
+                  : prev.daily_reminder_time,
+              review_reminders: row.review_reminders === true,
+              streak_reminders: row.streak_reminders === true,
+            };
+            saveLocalReminderPrefs(merged);
+            return merged;
+          });
+        }
       } catch {
         // stay signed-out view
       }
@@ -130,6 +173,45 @@ export default function SettingsPage() {
       setError(tr('Something went wrong with notifications. Please try again.'));
     } finally {
       setPushBusy(false);
+    }
+  }
+
+  async function saveReminderPrefs(next: ReminderPrefs) {
+    setPrefs(next);
+    saveLocalReminderPrefs(next);
+    setPrefsSaved(false);
+    setError(null);
+    if (!userId) return;
+    setPrefsSaving(true);
+    try {
+      const supabase = createClient();
+      const { error: uErr } = await supabase.from('profiles').upsert(
+        {
+          id: userId,
+          daily_reminder_enabled: next.daily_reminder_enabled,
+          daily_reminder_time: next.daily_reminder_time,
+          review_reminders: next.review_reminders,
+          streak_reminders: next.streak_reminders,
+        },
+        { onConflict: 'id' },
+      );
+      if (uErr) throw uErr;
+      setPrefsSaved(true);
+      setTimeout(() => setPrefsSaved(false), 2000);
+    } catch {
+      setError(tr('Could not save your reminder settings. Please try again.'));
+    } finally {
+      setPrefsSaving(false);
+    }
+  }
+
+  function changeTextScale(id: TextScaleId) {
+    setTextScale(id);
+    applyTextScale(id);
+    try {
+      window.localStorage.setItem(TEXT_SCALE_KEY, id);
+    } catch {
+      // ignore
     }
   }
 
@@ -266,11 +348,137 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="mt-4 p-5">
+        <h2 className="font-display text-lg text-slate-100">{tr('Study reminders')}</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          {tr(
+            'Optional nudges so your habit survives a busy week. All of these are off unless you turn them on — no streak guilt, ever.',
+          )}
+        </p>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/5 pt-4">
+          <div>
+            <p className="text-sm font-medium text-slate-200">{tr('Daily study reminder')}</p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              {tr('A gentle notification at a time you choose.')}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={prefs.daily_reminder_enabled}
+            onChange={(v) => void saveReminderPrefs({ ...prefs, daily_reminder_enabled: v })}
+            label={tr('Daily study reminder')}
+          />
+        </div>
+        {prefs.daily_reminder_enabled && (
+          <label className="mt-3 block text-sm text-slate-200">
+            {tr('Remind me at')}
+            <input
+              type="time"
+              value={prefs.daily_reminder_time}
+              onChange={(e) => void saveReminderPrefs({ ...prefs, daily_reminder_time: e.target.value })}
+              className="mt-1 block rounded-xl border border-white/10 bg-[#101828] px-3 py-2 text-slate-100"
+            />
+          </label>
+        )}
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/5 pt-4">
+          <div>
+            <p className="text-sm font-medium text-slate-200">{tr('Review reminders')}</p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              {tr('Let me know when verses or quiz questions are due for review.')}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={prefs.review_reminders}
+            onChange={(v) => void saveReminderPrefs({ ...prefs, review_reminders: v })}
+            label={tr('Review reminders')}
+          />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/5 pt-4">
+          <div>
+            <p className="text-sm font-medium text-slate-200">{tr('Streak encouragement')}</p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              {tr('A kind note when you keep your study streak going. Nothing if you miss a day.')}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={prefs.streak_reminders}
+            onChange={(v) => void saveReminderPrefs({ ...prefs, streak_reminders: v })}
+            label={tr('Streak encouragement')}
+          />
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500">
+          {pushOn
+            ? tr('Reminders are delivered as push notifications on this device.')
+            : tr('Turn on push notifications above to receive reminders on this device.')}
+          {prefsSaving ? ` ${tr('Saving…')}` : ''}
+          {prefsSaved ? ` ${tr('Saved!')}` : ''}
+        </p>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="font-display text-lg text-slate-100">{tr('Text size')}</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          {tr('Make all text in the app smaller or larger.')}
+        </p>
+        <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label={tr('Text size')}>
+          {TEXT_SCALES.map((s) => {
+            const active = textScale === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => changeTextScale(s.id)}
+                className={`rounded-xl border px-3 py-2 text-sm transition ${
+                  active
+                    ? 'border-[#C9A227] bg-[#C9A227]/15 text-[#C9A227]'
+                    : 'border-white/10 text-slate-300 hover:bg-white/5'
+                }`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="mt-4 p-5">
         <h2 className="font-display text-lg text-slate-100">{tr('Account')}</h2>
         <div className="mt-3">
           <Button onClick={signOut}>{tr('Sign out')}</Button>
         </div>
       </Card>
     </main>
+  );
+}
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative h-8 w-14 shrink-0 rounded-full transition ${
+        checked ? 'bg-[#C9A227]' : 'bg-white/10'
+      }`}
+    >
+      <span
+        className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-all ${
+          checked ? 'left-7' : 'left-1'
+        }`}
+      />
+    </button>
   );
 }

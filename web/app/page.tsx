@@ -10,9 +10,20 @@ import { LEARNING_PATHS, defaultPathForLevel, getPath } from '@/content/paths';
 import { getPathLessons } from '@/content/path-lessons';
 import { Badge, Button, Card, EmptyState, ProgressBar, SectionTitle } from '@/components/ui';
 import { DailyVerse } from '@/components/DailyVerse';
+import { TodayBlock, type TodayDevotional } from './TodayBlock';
+import { GamificationStrip } from '@/components/Gamification';
+import { DEVOTIONALS } from '@/content/devotionals';
+import {
+  computeBadges,
+  computeStreak as gamificationStreak,
+  computeXp,
+  levelForXp,
+  type GamificationInput,
+} from '@/lib/gamification';
 
 interface SessionRow {
   completed_at: string;
+  minutes: number;
 }
 
 interface ProgressRow {
@@ -42,15 +53,9 @@ interface PathMetaLike {
 }
 
 function computeStreak(dates: string[]): number {
-  const days = new Set(dates.map((d) => new Date(d).toDateString()));
-  const cur = new Date();
-  if (!days.has(cur.toDateString())) cur.setDate(cur.getDate() - 1);
-  let streak = 0;
-  while (days.has(cur.toDateString())) {
-    streak++;
-    cur.setDate(cur.getDate() - 1);
-  }
-  return streak;
+  // Re-exported from the gamification lib so home and the dashboard share
+  // one definition. (Kept as a local alias to avoid touching call sites.)
+  return gamificationStreak(dates);
 }
 
 function LoggedOutHome() {
@@ -89,25 +94,37 @@ export default async function HomePage() {
   let sessions: SessionRow[] = [];
   let progress: ProgressRow[] = [];
   let savedCount = 0;
+  let quizPoints = 0;
+  let quizAttempts = 0;
+  let masteredVerses = 0;
+  let memoryVerseCount = 0;
   try {
     const supabase = await createServerClient();
-    const [pr, s, p, sv] = await Promise.all([
+    const [pr, s, p, sv, qa, mv] = await Promise.all([
       supabase
         .from('profiles')
         .select('knowledge_level,daily_minutes,display_name,onboarding_completed')
         .eq('id', user.id)
         .maybeSingle(),
-      supabase.from('study_sessions').select('completed_at').eq('user_id', user.id),
+      supabase.from('study_sessions').select('completed_at,minutes').eq('user_id', user.id),
       supabase.from('lesson_progress').select('lesson_id').eq('user_id', user.id),
       supabase
         .from('saved_devotionals')
         .select('devotional_id', { count: 'exact', head: true })
         .eq('user_id', user.id),
+      supabase.from('quiz_attempts').select('score').eq('user_id', user.id),
+      supabase.from('memory_verses').select('status').eq('user_id', user.id),
     ]);
     profile = (pr.data ?? null) as ProfileRow | null;
     sessions = ((s.data ?? []) as SessionRow[]) ?? [];
     progress = ((p.data ?? []) as ProgressRow[]) ?? [];
     savedCount = sv.count ?? 0;
+    const qaRows = ((qa.data ?? []) as { score: number }[]) ?? [];
+    quizAttempts = qaRows.length;
+    quizPoints = qaRows.reduce((sum, r) => sum + (r.score || 0), 0);
+    const mvRows = ((mv.data ?? []) as { status: string }[]) ?? [];
+    memoryVerseCount = mvRows.length;
+    masteredVerses = mvRows.filter((r) => r.status === 'mastered').length;
   } catch {
     // offline or unconfigured — render dashboard with defaults
   }
@@ -148,6 +165,53 @@ export default async function HomePage() {
   const streak = computeStreak(sessions.map((s) => s.completed_at));
   const lessonHref = (l: PathLessonLike) => `/paths/${pathId}/${l.id}`;
 
+  // ---- "Today" devotional: sized to the user's time preference ----
+  const minutesBucket: 5 | 15 | 30 | 60 =
+    dailyMinutes <= 10 ? 5 : dailyMinutes <= 20 ? 15 : dailyMinutes <= 45 ? 30 : 60;
+  const todayDevotional: TodayDevotional | null = (() => {
+    try {
+      const pool = DEVOTIONALS.filter((d) => d.minutes === minutesBucket);
+      const list = pool.length > 0 ? pool : DEVOTIONALS;
+      if (list.length === 0) return null;
+      const now = new Date();
+      const start = new Date(now.getFullYear(), 0, 0).getTime();
+      const dayOfYear = Math.floor((now.getTime() - start) / 86400000);
+      const d = list[dayOfYear % list.length];
+      return {
+        id: d.id,
+        title: d.title,
+        topic: d.topic,
+        ref: d.ref,
+        passageText: d.passageText,
+        explanation: d.explanation,
+        prayer: d.prayer,
+        reflection: d.reflection,
+        minutes: d.minutes,
+      };
+    } catch {
+      return null;
+    }
+  })();
+
+  // ---- Gamification (all derived — no new tables) ----
+  const totalMinutes = sessions.reduce((sum, s) => sum + (s.minutes || 0), 0);
+  const todayStr = new Date().toDateString();
+  const todayMinutes = sessions
+    .filter((s) => new Date(s.completed_at).toDateString() === todayStr)
+    .reduce((sum, s) => sum + (s.minutes || 0), 0);
+  const gInput: GamificationInput = {
+    lessonCount: doneCount,
+    quizPoints,
+    quizAttempts,
+    studyMinutes: totalMinutes,
+    masteredVerses,
+    streakDays: streak,
+    memoryVerseCount,
+  };
+  const xp = computeXp(gInput);
+  const levelProgress = levelForXp(xp);
+  const badges = computeBadges(gInput);
+
   const lessonsFallback = (
     <EmptyState
       title={t('no_lessons', 'No lessons yet')}
@@ -177,6 +241,20 @@ export default async function HomePage() {
           🔥 {streak}
         </Badge>
       </div>
+
+      {/* 0. Today — the daily experience */}
+      {todayDevotional && <TodayBlock devotional={todayDevotional} />}
+
+      {/* 0b. Journey strip — level, XP, streak, badges (compact) */}
+      <GamificationStrip
+        level={levelProgress}
+        xp={xp}
+        streak={streak}
+        badges={badges}
+        todayMinutes={todayMinutes}
+        dailyGoal={dailyMinutes}
+        progressHref="/progress"
+      />
 
       {/* 1. Continue Learning — dominant CTA */}
       <section>
@@ -304,6 +382,42 @@ export default async function HomePage() {
             </p>
             <span className="mt-3 inline-block text-sm font-semibold text-gold">
               {t('ask_question', 'Ask a question')} →
+            </span>
+          </Card>
+        </Link>
+      </div>
+
+      {/* 5. Memory & progress — the daily learning loop companions */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/memory" className="block">
+          <Card className="h-full transition hover:border-gold/50">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold">
+              {t('scripture_memory', 'Scripture Memory')}
+            </p>
+            <h3 className="font-display mt-1 text-lg font-semibold text-ink dark:text-parchment">
+              {t('memory_teaser_title', 'Hide it in your heart')}
+            </h3>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              {t('memory_teaser', 'Memorize verses with flashcards, fill-in-the-blank, and spaced repetition.')}
+            </p>
+            <span className="mt-3 inline-block text-sm font-semibold text-gold">
+              {t('practice_memory', 'Practice memory')} →
+            </span>
+          </Card>
+        </Link>
+        <Link href="/progress" className="block">
+          <Card className="h-full transition hover:border-gold/50">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold">
+              {t('my_progress', 'My Progress')}
+            </p>
+            <h3 className="font-display mt-1 text-lg font-semibold text-ink dark:text-parchment">
+              {t('progress_teaser_title', 'See how you are growing')}
+            </h3>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              {t('progress_teaser', 'Lessons, streaks, quiz insights, badges, and next steps.')}
+            </p>
+            <span className="mt-3 inline-block text-sm font-semibold text-gold">
+              {t('view_progress', 'View progress')} →
             </span>
           </Card>
         </Link>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { LayeredLesson, LessonLayer } from '@/content/path-lessons';
 import { useT } from '@/lib/i18n';
 import { QuizBlock } from '@/components/QuizBlock';
+import { InteractiveQuiz, toInteractiveList } from '@/components/interactive';
 import { MarkCompleteButton } from '@/components/MarkCompleteButton';
 import { Card, SectionTitle } from '@/components/ui';
 
@@ -122,6 +123,23 @@ function LayerContent({ layer }: { layer: LessonLayer }) {
       <Card>
         <Markdown body={layer.teaching} />
       </Card>
+
+      {/* Mid-lesson checkpoint: one interactive question at a natural pause,
+          so the learner tests understanding before moving on. The first
+          quiz question is used here; the rest stay in "Test yourself". */}
+      {layer.quiz && layer.quiz.length > 1 && (
+        <div>
+          <SectionTitle
+            title={t('pause_check', 'Pause and check')}
+            className="mb-3"
+          />
+          <InteractiveQuiz
+            questions={toInteractiveList(layer.quiz.slice(0, 1))}
+            onComplete={() => {}}
+            compact
+          />
+        </div>
+      )}
 
       {/* Key terms */}
       {layer.keyTerms && layer.keyTerms.length > 0 && (
@@ -248,7 +266,10 @@ export function LessonView({ lesson }: { lesson: LayeredLesson }) {
       {/* Quiz */}
       <div>
         <SectionTitle title={t('test_yourself', 'Test yourself')} className="mb-3" />
-        <QuizBlock questions={layer.quiz ?? []} tag={`path-lesson:${lesson.id}:${minutes}min`} />
+        <QuizBlock
+          questions={(layer.quiz ?? []).slice(layer.quiz && layer.quiz.length > 1 ? 1 : 0)}
+          tag={`path-lesson:${lesson.id}:${minutes}min`}
+        />
       </div>
 
       {/* Complete */}

@@ -12,6 +12,67 @@ export interface ChapterText {
 
 export type TranslationCode = 'web' | 'kjv' | 'asv';
 
+export interface TranslationInfo {
+  code: TranslationCode;
+  /** Short label shown in the UI. */
+  name: string;
+  /** Full name for settings/about screens. */
+  fullName: string;
+  /** Licensing status — determines how text may be distributed. */
+  license: 'public-domain' | 'licensed';
+  /** Where the text comes from at runtime. */
+  source: string;
+}
+
+/**
+ * Registry of Bible translations Halo can display.
+ *
+ * Today every entry is public-domain (World English Bible, King James
+ * Version, American Standard Version), so the app can fetch, cache, and
+ * quote them freely, including offline.
+ *
+ * HOW TO ADD A LICENSED TRANSLATION (e.g. ESV, NIV, CSB):
+ *  1. Obtain a distribution license from the rights holder (e.g.
+ *     Crossway for ESV, Biblica/Zondervan for NIV) covering your platform
+ *     and expected volume; most require an API key and attribution.
+ *  2. Add an entry here with `license: 'licensed'` and the provider's
+ *     endpoint in `source`. Add the code to `TranslationCode`.
+ *  3. In `getChapterText`/`getVerseText`, route that code to the licensed
+ *     provider (authenticated fetch, never bolls.life), and enforce any
+ *     contractual limits (e.g. max verses per request, required
+ *     copyright notice) before rendering.
+ *  4. Never bundle licensed text into the repo, IndexedDB cache, or
+ *     offline fallback passages — public-domain text only.
+ * Scripture quotations inside content files likewise use only
+ * public-domain wording (WEB/KJV/ASV).
+ */
+export const TRANSLATIONS: Record<TranslationCode, TranslationInfo> = {
+  web: {
+    code: 'web',
+    name: 'WEB',
+    fullName: 'World English Bible',
+    license: 'public-domain',
+    source: 'bolls.life API (public domain text), cached in IndexedDB',
+  },
+  kjv: {
+    code: 'kjv',
+    name: 'KJV',
+    fullName: 'King James Version',
+    license: 'public-domain',
+    source: 'bolls.life API (public domain text), cached in IndexedDB',
+  },
+  asv: {
+    code: 'asv',
+    name: 'ASV',
+    fullName: 'American Standard Version',
+    license: 'public-domain',
+    source: 'bolls.life API (public domain text), cached in IndexedDB',
+  },
+};
+
+/** The translation used when none is specified. */
+export const DEFAULT_TRANSLATION: TranslationCode = 'web';
+
 interface BollsVerse {
   pk: number;
   verse: number;

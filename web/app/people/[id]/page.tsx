@@ -1,46 +1,40 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { PEOPLE } from '@/content/people';
+import { getPerson } from '@/content/people';
 import { getVerseText } from '@/lib/bible';
 import { useT } from '@/lib/i18n';
 import { Badge, Card, SectionTitle } from '@/components/ui';
 
-interface PersonLike {
-  id: string;
-  name: string;
-  role?: string;
-  description?: string;
-  bio?: string;
-  refs?: string[];
-  keyPassages?: { ref: string; note?: string }[];
-  related?: string[];
-}
-
-function safeGetPerson(id: string): PersonLike | undefined {
-  try {
-    return ((PEOPLE ?? []) as unknown as PersonLike[]).find((p) => p.id === id);
-  } catch {
-    return undefined;
-  }
-}
-
 export default async function PersonPage({ params }: { params: { id: string } }) {
   const { t } = useT();
-  const person = safeGetPerson(params.id);
+  let person: ReturnType<typeof getPerson>;
+  try {
+    person = getPerson(params.id);
+  } catch {
+    person = undefined;
+  }
   if (!person) notFound();
 
-  const bio = person.bio ?? person.description ?? '';
-  const passages = person.keyPassages ?? (person.refs ?? []).map((ref) => ({ ref, note: '' }));
   const withText = await Promise.all(
-    passages.map(async (p) => {
+    person.keyPassages.map(async (ref) => {
       try {
-        const v = await getVerseText(p.ref);
-        return { ...p, text: v.text };
+        const v = await getVerseText(ref);
+        return { ref, text: v.text };
       } catch {
-        return { ...p, text: '' };
+        return { ref, text: '' };
       }
     }),
   );
+
+  const related = person.related
+    .map((id) => {
+      try {
+        return getPerson(id);
+      } catch {
+        return undefined;
+      }
+    })
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -54,18 +48,43 @@ export default async function PersonPage({ params }: { params: { id: string } })
         <h1 className="font-display mt-2 text-3xl font-semibold text-ink dark:text-parchment">
           {person.name}
         </h1>
-        {person.role ? <p className="mt-1 font-medium text-gold">{person.role}</p> : null}
+        <p className="mt-2 leading-7 text-slate-700 dark:text-slate-300">{person.who}</p>
       </div>
 
-      {bio ? (
+      <Card>
+        <SectionTitle title={t('Their story')} />
+        <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-300">
+          {person.context}
+        </p>
+      </Card>
+
+      {person.family.length > 0 && (
         <Card>
-          <div className="lesson-body">
-            {bio.split('\n\n').map((p, i) => (
-              <p key={i}>{p}</p>
+          <SectionTitle title={t('Family')} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {person.family.map((f) => (
+              <Badge key={f}>{f}</Badge>
             ))}
           </div>
         </Card>
-      ) : null}
+      )}
+
+      {person.events.length > 0 && (
+        <div>
+          <SectionTitle title={t('Key events')} className="mb-3" />
+          <ol className="relative space-y-3 border-l-2 border-gold/30 pl-6">
+            {person.events.map((e, i) => (
+              <li key={i} className="relative text-sm leading-7 text-slate-700 dark:text-slate-300">
+                <span
+                  aria-hidden
+                  className="absolute -left-[31px] top-2 h-2.5 w-2.5 rounded-full border-2 border-gold bg-parchment dark:bg-ink"
+                />
+                {e}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {withText.length > 0 && (
         <div>
@@ -79,26 +98,56 @@ export default async function PersonPage({ params }: { params: { id: string } })
                     “{p.text}”
                   </p>
                 ) : null}
-                {p.note ? (
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                    {p.note}
-                  </p>
-                ) : null}
               </Card>
             ))}
           </div>
         </div>
       )}
 
-      {person.related && person.related.length > 0 && (
+      {person.lessons.length > 0 && (
+        <Card className="bg-gold/5">
+          <SectionTitle title={t('What we learn')} />
+          <ul className="mt-3 list-disc space-y-2 pl-6 text-sm leading-7 text-slate-700 dark:text-slate-300">
+            {person.lessons.map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {person.faithExamples.length > 0 && (
         <Card>
-          <SectionTitle title={t('search_people')} />
-          <div className="mt-3 flex flex-wrap gap-2">
-            {person.related.map((r) => (
-              <Badge key={r}>{r}</Badge>
+          <SectionTitle title={t('Examples of faith')} />
+          <ul className="mt-3 list-disc space-y-2 pl-6 text-sm leading-7 text-slate-700 dark:text-slate-300">
+            {person.faithExamples.map((f, i) => (
+              <li key={i}>{f}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {person.failures.length > 0 && (
+        <Card>
+          <SectionTitle title={t('Failures — and grace')} />
+          <ul className="mt-3 list-disc space-y-2 pl-6 text-sm leading-7 text-slate-700 dark:text-slate-300">
+            {person.failures.map((f, i) => (
+              <li key={i}>{f}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {related.length > 0 && (
+        <div>
+          <SectionTitle title={t('Related people')} className="mb-3" />
+          <div className="flex flex-wrap gap-2">
+            {related.map((r) => (
+              <Link key={r.id} href={`/people/${r.id}`}>
+                <Badge className="transition hover:border-gold">{r.name}</Badge>
+              </Link>
             ))}
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

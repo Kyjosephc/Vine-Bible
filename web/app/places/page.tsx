@@ -1,21 +1,14 @@
 import { PLACES } from '@/content/places';
+import type { Place } from '@/content/places';
 import { useT } from '@/lib/i18n';
-import { Card, EmptyState } from '@/components/ui';
-
-interface PlaceLike {
-  id: string;
-  name: string;
-  description?: string;
-  region?: string;
-  mapQuery?: string;
-}
+import { Badge, Card, EmptyState } from '@/components/ui';
 
 export default function PlacesPage() {
   const { t } = useT();
 
-  let places: PlaceLike[] = [];
+  let places: Place[] = [];
   try {
-    places = (PLACES ?? []) as unknown as PlaceLike[];
+    places = PLACES ?? [];
   } catch {
     places = [];
   }
@@ -26,6 +19,9 @@ export default function PlacesPage() {
         <h1 className="font-display text-3xl font-semibold text-ink dark:text-parchment">
           {t('places_title')}
         </h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          {t('Walk the lands of the Bible — each place with its story and key passages.')}
+        </p>
       </div>
 
       {places.length === 0 ? (
@@ -41,14 +37,19 @@ export default function PlacesPage() {
                 <h2 className="font-display text-xl font-semibold text-ink dark:text-parchment">
                   {place.name}
                 </h2>
-                {place.region ? (
-                  <p className="mt-0.5 text-xs font-medium text-gold">{place.region}</p>
-                ) : null}
-                {place.description ? (
-                  <p className="mt-2 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                    {place.description}
-                  </p>
-                ) : null}
+                <p className="mt-2 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                  {place.description}
+                </p>
+                <p className="mt-2 border-l-2 border-gold/50 pl-3 text-sm italic leading-6 text-slate-600 dark:text-slate-400">
+                  {place.significance}
+                </p>
+                {place.keyPassages.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {place.keyPassages.slice(0, 4).map((ref) => (
+                      <Badge key={ref}>{ref}</Badge>
+                    ))}
+                  </div>
+                )}
                 <a
                   href={mapUrl}
                   target="_blank"

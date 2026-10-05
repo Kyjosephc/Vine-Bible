@@ -9,6 +9,8 @@ import { LIFE_TOPICS } from '@/content/life';
 import { lookupLexicon } from '@/content/lexicon';
 import { FALLBACK_PASSAGES } from '@/content/fallback-passages';
 import { bookSlug } from '@/lib/bible';
+import { nlSearch } from '@/lib/search-nl';
+import type { NLHit, NLKind } from '@/lib/search-nl';
 import { Card, EmptyState, SectionTitle } from '@/components/ui';
 import { useT } from '@/lib/i18n';
 
@@ -41,11 +43,56 @@ interface TopicLike {
   reflection: string[];
 }
 
+const SUGGESTED = [
+  'verses about being afraid',
+  'what does the Bible say about forgiveness?',
+  'does God exist?',
+  'who was David?',
+  'verses about anxiety',
+  'what happens after death?',
+];
+
+const KIND_META: Record<NLKind, { title: string; hint: string }> = {
+  life: { title: 'Life topics', hint: 'Practical guidance for real life' },
+  apologetics: { title: 'Big questions', hint: 'Honest answers about God, Jesus & the Bible' },
+  denominations: { title: 'Church differences', hint: 'Where Christians disagree, explained fairly' },
+};
+
+function NLSection({ kind, hits }: { kind: NLKind; hits: NLHit[] }) {
+  const meta = KIND_META[kind];
+  return (
+    <section>
+      <SectionTitle title={meta.title} />
+      <p className="-mt-1 mb-3 text-xs text-slate-500 dark:text-slate-400">{meta.hint}</p>
+      <div className="space-y-2">
+        {hits.map((h) => (
+          <Link key={h.href} href={h.href}>
+            <Card className="transition hover:border-gold/50">
+              <p className="font-semibold text-ink dark:text-parchment">{h.title}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                {h.subtitle}
+              </p>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function SearchPage() {
   const { t } = useT();
   const [query, setQuery] = useState('');
 
   const q = query.trim().toLowerCase();
+
+  const nlHits = useMemo(() => (q.length < 2 ? [] : safe(() => nlSearch(query), [])), [q, query]);
+
+  const nlByKind = useMemo(() => {
+    const out: Record<NLKind, NLHit[]> = { life: [], apologetics: [], denominations: [] };
+    for (const h of nlHits) out[h.kind].push(h);
+    return out;
+  }, [nlHits]);
 
   const results = useMemo(() => {
     if (q.length < 2) return null;
@@ -84,6 +131,8 @@ export default function SearchPage() {
       results.word ||
       results.passages.length > 0);
 
+  const hasNl = nlHits.length > 0;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="font-display text-3xl font-semibold text-ink dark:text-parchment">
@@ -93,17 +142,43 @@ export default function SearchPage() {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('search_placeholder')}
+        placeholder={t('Ask anything — "verses about being afraid"…')}
         autoFocus
         className="w-full rounded-2xl border border-ink/15 bg-white px-5 py-3 text-ink placeholder:text-slate-400 focus:border-gold focus:outline-none dark:border-white/15 dark:bg-white/[0.04] dark:text-parchment"
       />
 
       {!results ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{t('search_hint')}</p>
-      ) : !hasAny ? (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t('search_hint')}</p>
+          <div className="flex flex-wrap gap-2">
+            {SUGGESTED.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setQuery(s)}
+                className="rounded-full border border-ink/15 px-3 py-1.5 text-xs text-ink transition hover:border-gold/60 hover:bg-gold/10 dark:border-white/15 dark:text-parchment"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : !hasAny && !hasNl ? (
         <EmptyState title={t('search_title')} description={t('no_results')} />
       ) : (
         <>
+          {hasNl && (
+            <>
+              {nlByKind.life.length > 0 && <NLSection kind="life" hits={nlByKind.life} />}
+              {nlByKind.apologetics.length > 0 && (
+                <NLSection kind="apologetics" hits={nlByKind.apologetics} />
+              )}
+              {nlByKind.denominations.length > 0 && (
+                <NLSection kind="denominations" hits={nlByKind.denominations} />
+              )}
+            </>
+          )}
+
           {results.books.length > 0 && (
             <section>
               <SectionTitle title={t('search_books')} />
