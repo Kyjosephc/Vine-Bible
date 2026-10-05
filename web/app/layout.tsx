@@ -3,6 +3,7 @@ import { Inter, Newsreader } from 'next/font/google';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n';
 import { KidsProvider } from '@/components/KidsMode';
+import OnboardingGate from '@/components/OnboardingGate';
 import Nav from '@/components/Nav';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} ${newsreader.variable} font-sans antialiased`}>
         <LanguageProvider>
           <KidsProvider>
+          <OnboardingGate />
           <Nav />
           <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-6 sm:px-6">{children}</main>
           </KidsProvider>
